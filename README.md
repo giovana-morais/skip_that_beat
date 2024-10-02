@@ -1,2 +1,2 @@
-# meter_aug
+# Skip That Beat
 Repository for LAMIR paper 
