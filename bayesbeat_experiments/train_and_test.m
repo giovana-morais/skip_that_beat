@@ -47,7 +47,7 @@ base_path = '/home/gigibs/Documents/meter_estimation/bayesbeat/src/';
 addpath(base_path);
 
 % Load file with the training data
-split_path = '/home/gigibs/Documents/meter_estimation/meter_augmentation/data/splits/'
+split_path = '/home/gigibs/Documents/meter_estimation/meter_augmentation/splits/'
 exp = 'augmented_sampled';
 
 train_files = read_from_file(strcat(split_path, exp, '_train.txt'));

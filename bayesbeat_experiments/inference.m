@@ -46,7 +46,7 @@ model_path = '/home/gigibs/Documents/meter_estimation/meter_augmentation/bayesbe
 model_file = strcat(model_path, exp, 'model.mat');
 
 % load brid
-split_path = '/home/gigibs/Documents/meter_estimation/meter_augmentation/data/splits/'
+split_path = '/home/gigibs/Documents/meter_estimation/meter_augmentation/splits'
 test_files = read_from_file(strcat(split_path, 'brid.txt'));
 
 % where to save the results
