@@ -1,5 +1,7 @@
 # Skip That Beat: Augmenting Meter Tracking Models for Underrepresented Time Signatures 
 
+[Paper]() | [Demo](https://giovana-morais.github.io/skip_that_beat_demo) | [Code](https://github.com/giovana-morais/skip_that_beat)
+
 ## Datasets
 Supported datasets: 
 * Beatles
