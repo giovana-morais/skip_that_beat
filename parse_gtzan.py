@@ -11,6 +11,7 @@ folder structure:
 GTZAN-rhythm source: http://anasynth.ircam.fr/home/media/GTZAN-rhythm
 """
 
+import argparse
 import os
 import shutil
 from collections import Counter
@@ -33,28 +34,52 @@ def infer_meter(track):
 
     return meter
 
+def create_parser():
+    """
+    creates ArgumentParser
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--gtzan_path",
+        type=str,
+        required=True,
+        help="path for your gtzan dataset"
+    )
+    parser.add_argument(
+        "--gtzan_rhythm_path",
+        type=str,
+        required=True,
+        help="path to gtzan rhythm"
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        required=True,
+        help="where to save the parsed data"
+    )
+    return parser
+
+
+
 if __name__ == "__main__":
-    # define all paths
-    datasets_home = "/media/gigibs/DD02EEEC68459F17/datasets"
-    data_home = os.path.join(datasets_home, "gtzan_genre")
-    rhythm_annotations_path = os.path.join(datasets_home, "gtzan_rhythm")
-    output_folder = os.path.join(datasets_home, "gtzan")
-    audio_folder = os.path.join(output_folder, "audio")
-    annotations_folder = os.path.join(output_folder, "annotations")
+    args = create_parser().parse_args()
+    audio_folder = os.path.join(args.output_path, "audio")
+    annotations_folder = os.path.join(args.output_path, "annotations")
     beats_folder = os.path.join(annotations_folder, "beats")
     meter_folder = os.path.join(annotations_folder, "meter")
 
     # initialize dataset
-    gtzan = mirdata.initialize("gtzan_genre", data_home=data_home)
+    gtzan = mirdata.initialize("gtzan_genre", data_home=args.gtzan_path)
     tracks = gtzan.track_ids
 
     # create folders
-    os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(args.output_path, exist_ok=True)
     os.makedirs(audio_folder, exist_ok=True)
     os.makedirs(beats_folder, exist_ok=True)
     os.makedirs(meter_folder, exist_ok=True)
 
-    df = pd.read_csv(os.path.join(rhythm_annotations_path, "stats.csv"))
+    df = pd.read_csv(os.path.join(args.gtzan_rhythm_path, "stats.csv"))
     df["filename"] = df["filename"].apply(lambda x: x.replace(".wav", ""))
     df.index = df["filename"]
 
