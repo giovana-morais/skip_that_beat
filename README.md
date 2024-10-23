@@ -75,22 +75,10 @@ folder and the experiment you wish to reproduce (`baseline`,
 `augmented_sampled` or `augmented_full`)
 
 ```bash
-python tcn.py \
+python run_tcn_experiment.py \
 	--data_home /path/to/datasets \
 	--splits_home /path/to/splits \
 	--experiment exp
 ```
 
-To run inference with both the DBN and PP methods, run
-
-```bash
-python tcn_predict.py \
-	--data_home /path/to/datasets \
-	--test_set brid \
-	--experiment exp
-```
-
-The `test_set` variable accepts both `brid` and `default`.
-
-## Reproduce paper figures
-To reproduce paper figures, please run the script `paper_figures.py`
+This will train and test the TCN in both BRID and the regular test set.
