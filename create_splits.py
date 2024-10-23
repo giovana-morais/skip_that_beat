@@ -4,9 +4,6 @@ create splits for training the model.
 train/validation should belong to the same set of data
 test should be data from different dataset
 """
-import sys
-sys.path.append("..")
-
 import argparse
 import os
 import random
@@ -215,14 +212,35 @@ def augmented_sampled_split(train, val, test, aug24, aug34):
 
     return aug_train, aug_val, aug_test
 
-if __name__ == "__main__":
-    DATA_PATH = "/media/gigibs/DD02EEEC68459F17/datasets"
-    SPLIT_PATH = "/home/gigibs/Documents/meter_estimation/meter_augmentation/data/splits"
+def create_parser():
+    """
+    creates ArgumentParser
+    """
 
-    gtzan = utils.custom_dataset_loader(DATA_PATH, "gtzan", "")
-    rwcj = utils.custom_dataset_loader(DATA_PATH, "rwcj", "")
-    rwcc = utils.custom_dataset_loader(DATA_PATH, "rwcc", "")
-    beatles = utils.custom_dataset_loader(DATA_PATH, "beatles", "")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--data_home",
+        type=str,
+        required=True,
+        help="path for your dataset"
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        required=True,
+        help="where to save the splits"
+    )
+
+    return parser
+
+
+if __name__ == "__main__":
+    args = create_parser().parse_args()
+
+    gtzan = utils.custom_dataset_loader(args.data_home, "gtzan", "")
+    rwcj = utils.custom_dataset_loader(args.data_home, "rwcj", "")
+    rwcc = utils.custom_dataset_loader(args.data_home, "rwcc", "")
+    beatles = utils.custom_dataset_loader(args.data_home, "beatles", "")
 
     # loading meter info
     print("GTZAN meter distribution")
@@ -259,33 +277,33 @@ if __name__ == "__main__":
 
 
     baseline_train, baseline_val, baseline_test = baseline_split(train_tracks, test_tracks)
-    save_splits(SPLIT_PATH, "baseline", baseline_train, baseline_val, baseline_test)
+    save_splits(args.output_path, "baseline", baseline_train, baseline_val, baseline_test)
 
-    gtzan_24 = utils.custom_dataset_loader(DATA_PATH, folder="gtzan_augmented",
+    gtzan_24 = utils.custom_dataset_loader(args.data_home, folder="gtzan_augmented",
             dataset_name="24")
-    rwcj_24 = utils.custom_dataset_loader(DATA_PATH,
+    rwcj_24 = utils.custom_dataset_loader(args.data_home,
             folder="rwcj_augmented", dataset_name="24")
-    rwcc_24 = utils.custom_dataset_loader(DATA_PATH,
+    rwcc_24 = utils.custom_dataset_loader(args.data_home,
             folder="rwcc_augmented", dataset_name="24")
-    beatles_24 = utils.custom_dataset_loader(DATA_PATH,
+    beatles_24 = utils.custom_dataset_loader(args.data_home,
             folder="beatles_augmented", dataset_name="24")
 
     aug24_data = gtzan_24.load_tracks() | rwcj_24.load_tracks() | rwcc_24.load_tracks() | beatles_24.load_tracks()
 
-    gtzan_34 = utils.custom_dataset_loader(DATA_PATH, folder="gtzan_augmented", dataset_name="34")
-    rwcj_34 = utils.custom_dataset_loader(DATA_PATH,
+    gtzan_34 = utils.custom_dataset_loader(args.data_home, folder="gtzan_augmented", dataset_name="34")
+    rwcj_34 = utils.custom_dataset_loader(args.data_home,
             folder="rwcj_augmented", dataset_name="34")
-    rwcc_34 = utils.custom_dataset_loader(DATA_PATH,
+    rwcc_34 = utils.custom_dataset_loader(args.data_home,
             folder="rwcc_augmented", dataset_name="34")
-    beatles_34 = utils.custom_dataset_loader(DATA_PATH,
+    beatles_34 = utils.custom_dataset_loader(args.data_home,
             folder="beatles_augmented", dataset_name="34")
 
     aug34_data = gtzan_34.load_tracks() | rwcj_34.load_tracks() | rwcc_34.load_tracks() | beatles_34.load_tracks()
 
     # augmented full tracks
     aug_full_train, aug_full_val, aug_full_test = augmented_full_split(baseline_train, baseline_val, baseline_test, aug24_data, aug34_data)
-    save_splits(SPLIT_PATH, "augmented_full", aug_full_train, aug_full_val, aug_full_test)
+    save_splits(args.output_path, "augmented_full", aug_full_train, aug_full_val, aug_full_test)
 
     # augmented sampled tracks
     aug_sampled_train, aug_sampled_val, aug_sampled_test = augmented_sampled_split(baseline_train, baseline_val, baseline_test, aug24_data, aug34_data)
-    save_splits(SPLIT_PATH, "augmented_sampled", aug_sampled_train, aug_sampled_val, aug_sampled_test)
+    save_splits(args.output_path, "augmented_sampled", aug_sampled_train, aug_sampled_val, aug_sampled_test)
