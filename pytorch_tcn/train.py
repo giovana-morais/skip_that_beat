@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 from datetime import datetime
@@ -11,10 +12,35 @@ from torch.utils.data import DataLoader
 from config import PARAMS_TRAIN
 from dataloader import BeatData
 from model import MultiTracker
+from norm_model import MultiTracker as NormMultiTracker
 from pl_model import PLTCN
 
 sys.path.append("..")
 import utils
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Experiment and Model Selection")
+
+    # Experiment argument
+    parser.add_argument(
+        "--experiment",
+        type=str,
+        choices=["baseline", "augmented_full", "augmented_sampled"],
+        required=True,
+        help="Type of experiment to run. Choices: baseline, augmented_full, augmented_sampled"
+    )
+
+    # Model argument
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["default", "opnorm"],
+        required=True,
+        help="Model type to use. Choices: default, opnorm"
+    )
+
+    args = parser.parse_args()
+    return args
 
 def get_tracks(experiment):
     full_train_files = utils.get_split_tracks(f"../splits/{experiment}_train.txt")
@@ -47,8 +73,12 @@ if __name__ == "__main__":
     # load params
     PARAMS = PARAMS_TRAIN
 
+    # parse arguments
+    args = parse_args()
+    PARAMS["experiment"] = args.experiment
+    PARAMS["model"] = args.model
+
     # TODO: RECEIVE THIS AS PARAMETER
-    experiment = "baseline"
     data_home = "/media/gigibs/DD02EEEC68459F17/datasets/"
     datasets = [
         "gtzan", "gtzan_augmented/24", "gtzan_augmented/34",
@@ -67,7 +97,7 @@ if __name__ == "__main__":
             )
         dataset_tracks = dataset_tracks | d.load_tracks()
 
-    train_keys, validation_keys, test_keys, brid_keys = get_tracks(experiment)
+    train_keys, validation_keys, test_keys, brid_keys = get_tracks(args.experiment)
 
     # create dataloaders
     train_data = BeatData(dataset_tracks, train_keys, widen=True)
@@ -89,12 +119,21 @@ if __name__ == "__main__":
     )
 
     # instatiate models
-    tcn = MultiTracker(
-        n_filters=PARAMS["N_FILTERS"],
-        n_dilations=PARAMS["N_DILATIONS"],
-        kernel_size=PARAMS["KERNEL_SIZE"],
-        dropout_rate=PARAMS["DROPOUT"],
-    )
+    if args.model == "default":
+        tcn = MultiTracker(
+            n_filters=PARAMS["N_FILTERS"],
+            n_dilations=PARAMS["N_DILATIONS"],
+            kernel_size=PARAMS["KERNEL_SIZE"],
+            dropout_rate=PARAMS["DROPOUT"],
+        )
+    else:
+        tcn = NormMultiTracker(
+            n_filters=PARAMS["N_FILTERS"],
+            n_dilations=PARAMS["N_DILATIONS"],
+            kernel_size=PARAMS["KERNEL_SIZE"],
+            dropout_rate=PARAMS["DROPOUT"],
+        )
+
     model = PLTCN(tcn, PARAMS)
 
     # define where to save the checkpoint
@@ -115,7 +154,7 @@ if __name__ == "__main__":
         logger=logger,
         gradient_clip_val=PARAMS["GRADIENT_CLIP"],
         callbacks=[
-            EarlyStopping(monitor="val_loss", mode="min"),
+            # EarlyStopping(monitor="val_loss", mode="min"),
             ModelCheckpoint(
                 dirpath=CKPTS_DIR,
                 filename=ckpt_name,
@@ -130,7 +169,7 @@ if __name__ == "__main__":
         model=model,
         dataloaders=test_dataloader,
         ckpt_path=f"{CKPTS_DIR}/{ckpt_name}.ckpt",
-        verbose=True,
+        # verbose=True,
     )
 
     wandb.finish()
