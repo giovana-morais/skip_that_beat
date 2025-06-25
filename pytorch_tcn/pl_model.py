@@ -138,6 +138,6 @@ class PLTCN(L.LightningModule):
                 cooldown=0,
                 min_lr=1e-7,
             ),
-            "monitor": "val_loss",
+            "monitor": "train_loss",
         }
         return [optimizer], [scheduler]

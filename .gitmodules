@@ -1,0 +1,3 @@
+[submodule "pytorch_tcn/opnorm-grad"]
+	path = pytorch_tcn/opnorm-grad
+	url = git@github.com:tomxi/opnorm-grad.git
