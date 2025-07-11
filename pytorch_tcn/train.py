@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     # log into wandb
     run = wandb.init(
-        project="skip_the_beat", name=f"TCN_train_{timestamp}", config=PARAMS
+        project="skip_the_beat", name=f"TCN_{args.model}_{timestamp}", config=PARAMS
     )
     logger = WandbLogger()
     logger.watch(model, "all")
@@ -153,6 +153,8 @@ if __name__ == "__main__":
         max_epochs=PARAMS["N_EPOCHS"],
         logger=logger,
         gradient_clip_val=PARAMS["GRADIENT_CLIP"],
+        precision=PARAMS["PRECISION"],
+        detect_anomaly=PARAMS["DETECT_ANOMALY"],
         callbacks=[
             # EarlyStopping(monitor="val_loss", mode="min"),
             ModelCheckpoint(

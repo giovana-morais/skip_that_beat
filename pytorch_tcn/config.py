@@ -5,7 +5,9 @@ PARAMS_TRAIN = {
     "DROPOUT": 0.15,
     "N_DILATIONS": 11,
     "N_EPOCHS": 15,
-    "GRADIENT_CLIP": 0.5,
+    "GRADIENT_CLIP": None,
     "LOSS": "BCE",
     "NUM_WORKERS": 7,
+    "PRECISION": "32",
+    "DETECT_ANOMALY": False
 }

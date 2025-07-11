@@ -9,6 +9,7 @@ import mir_eval
 import numpy as np
 import torch
 import torch.nn.functional as F
+from lightning.pytorch.utilities import grad_norm
 
 import losses
 
@@ -27,6 +28,12 @@ class PLTCN(L.LightningModule):
 
     def forward(self, x):
         return self.model(x)
+
+    def on_before_optimizer_step(self, optimizer):
+        # Compute the 2-norm for each layer
+        # If using mixed precision, the gradients are already unscaled here
+        norms = grad_norm(self.model, norm_type=2)
+        self.log_dict(norms)
 
     def training_step(self, batch, batch_idx):
         # get annotations
@@ -48,6 +55,52 @@ class PLTCN(L.LightningModule):
         self.log("train_beat_loss", beat_loss, prog_bar=True, on_epoch=True)
         self.log("train_downbeat_loss", downbeat_loss, prog_bar=True, on_epoch=True)
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+
+        # compute fmeasure
+        # load annotations
+        beats_target = batch["beats_ann"].detach().cpu().numpy().squeeze()
+        downbeats_target = batch["downbeats_ann"].detach().cpu().numpy().squeeze()
+
+        # process activations
+        beats_act = output["beats"].squeeze().detach().cpu().numpy()
+        downbeats_act = output["downbeats"].squeeze().detach().cpu().numpy()
+
+        # # define beat and downbeat DBN
+        beat_dbn = madmom.features.beats.DBNBeatTrackingProcessor(
+            min_bpm=55.0, max_bpm=215.0, fps=100, transition_lambda=100, online=False
+        )
+        downbeat_dbn = madmom.features.downbeats.DBNDownBeatTrackingProcessor(
+            beats_per_bar=[2, 3, 4],
+            min_bpm=55.0,
+            max_bpm=215.0,
+            fps=100,
+            transition_lambda=100,
+        )
+
+        beats_prediction = beat_dbn(beats_act)
+        # following TF implementation, downbeat DBN receives the combined
+        # beat/downbeat activations
+        combined_act = np.vstack(
+            (np.maximum(beats_act - downbeats_act, 0), downbeats_act)
+        ).T
+        downbeats_prediction = downbeat_dbn(combined_act)
+        # the combined activation results in 2d predictions, [beat_time,
+        # beat_position]. therefore we need to filter only the downbeats
+        # timestamps for the fmeasure calculation.
+        downbeats_timestamps = downbeats_prediction[downbeats_prediction[:, 1] == 1][
+            :, 0
+        ]
+
+        # calculate f-measure
+        beat_fmeasure = mir_eval.beat.f_measure(beats_target, beats_prediction)
+        downbeat_fmeasure = mir_eval.beat.f_measure(
+            downbeats_target, downbeats_timestamps
+        )
+
+        # log it
+        self.log("train_beat_fmeasure", beat_fmeasure, on_step=True)
+        self.log("train_downbeat_fmeasure", downbeat_fmeasure, on_step=True)
+
 
         return loss
 
@@ -71,6 +124,51 @@ class PLTCN(L.LightningModule):
         self.log("val_beat_loss", beat_loss, prog_bar=True, on_epoch=True)
         self.log("val_downbeat_loss", downbeat_loss, prog_bar=True, on_epoch=True)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True)
+
+        # compute fmeasure
+        # load annotations
+        beats_target = batch["beats_ann"].detach().cpu().numpy().squeeze()
+        downbeats_target = batch["downbeats_ann"].detach().cpu().numpy().squeeze()
+
+        # process activations
+        beats_act = output["beats"].squeeze().detach().cpu().numpy()
+        downbeats_act = output["downbeats"].squeeze().detach().cpu().numpy()
+
+        # # define beat and downbeat DBN
+        beat_dbn = madmom.features.beats.DBNBeatTrackingProcessor(
+            min_bpm=55.0, max_bpm=215.0, fps=100, transition_lambda=100, online=False
+        )
+        downbeat_dbn = madmom.features.downbeats.DBNDownBeatTrackingProcessor(
+            beats_per_bar=[2, 3, 4],
+            min_bpm=55.0,
+            max_bpm=215.0,
+            fps=100,
+            transition_lambda=100,
+        )
+
+        beats_prediction = beat_dbn(beats_act)
+        # following TF implementation, downbeat DBN receives the combined
+        # beat/downbeat activations
+        combined_act = np.vstack(
+            (np.maximum(beats_act - downbeats_act, 0), downbeats_act)
+        ).T
+        downbeats_prediction = downbeat_dbn(combined_act)
+        # the combined activation results in 2d predictions, [beat_time,
+        # beat_position]. therefore we need to filter only the downbeats
+        # timestamps for the fmeasure calculation.
+        downbeats_timestamps = downbeats_prediction[downbeats_prediction[:, 1] == 1][
+            :, 0
+        ]
+
+        # calculate f-measure
+        beat_fmeasure = mir_eval.beat.f_measure(beats_target, beats_prediction)
+        downbeat_fmeasure = mir_eval.beat.f_measure(
+            downbeats_target, downbeats_timestamps
+        )
+
+        # log it
+        self.log("val_beat_fmeasure", beat_fmeasure, on_step=True)
+        self.log("val_downbeat_fmeasure", downbeat_fmeasure, on_step=True)
 
         return loss
 
@@ -127,17 +225,24 @@ class PLTCN(L.LightningModule):
         return [beat_fmeasure, downbeat_fmeasure]
 
     def configure_optimizers(self):
-        optimizer = torch.optim.RAdam(self.parameters(), lr=0.005)
-        scheduler = {
-            "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                mode="min",
-                factor=0.2,
-                patience=10,
-                threshold=1e-3,
-                cooldown=0,
-                min_lr=1e-7,
-            ),
-            "monitor": "train_loss",
-        }
-        return [optimizer], [scheduler]
+        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
+        # TODO: log learning rate
+        # try this next run
+        # https://docs.pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CyclicLR.html#torch.optim.lr_scheduler.CyclicLR
+
+        # optimizer = torch.optim.RAdam(self.parameters(), lr=0.005)
+
+        # remove?
+        # scheduler = {
+        #     "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #         optimizer,
+        #         mode="min",
+        #         factor=0.2,
+        #         patience=10,
+        #         threshold=1e-3,
+        #         cooldown=0,
+        #         min_lr=1e-7,
+        #     ),
+        #     "monitor": "train_loss",
+        # }
+        return [optimizer] #, [scheduler]
